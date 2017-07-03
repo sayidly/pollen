@@ -1,0 +1,1 @@
+#hash((doc . (root (headline "Pollen markup") "\n" "\n" (items (item "You " (strong "wanted") " it - you " (em "got") " it.") "\n" " " (item (link "https://google.com/search?q=racket" "search for Racket"))))) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/uptown.html.pm"))))

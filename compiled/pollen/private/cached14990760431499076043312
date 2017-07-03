@@ -1,0 +1,1 @@
+#hash((doc . "Just want to try") (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/hello.txt.pp"))))
