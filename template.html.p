@@ -8,7 +8,7 @@
   <body>
     ◊(->html doc)
     The current page is called ◊|here|.
-    The previous is ◊|(previous here)|.
-    The next is ◊|(next here)|.
+    The previous is <a href="◊|(previous here)|">◊|(previous here)|</a>.
+    The next is <a href="◊|(next here)|">◊|(next here)|</a>.
   </body>
 </html>
