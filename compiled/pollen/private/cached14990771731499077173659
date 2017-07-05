@@ -1,1 +1,0 @@
-#hash((doc . (root (h2 ((id "pollen--plutonium")) "Pollen + Plutonium") (ul (li (p "You " (strong "wanted") " Plutonium — you " (em "got") " it.")) (li (p (a ((href "https://google.com/search?q=racket")) "search for Plutonium")))))) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/downtown.html.pmd"))))

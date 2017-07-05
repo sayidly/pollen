@@ -1,1 +1,0 @@
-#hash((doc . "The cave is pitch black.\nLook out for the grue.\nThe padding is 15em.\nThe border is too.") (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/tutorial/poem.html.pp"))))
