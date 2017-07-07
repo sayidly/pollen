@@ -1,0 +1,1 @@
+#hash((doc . (pagetree-root carticle.html article.html barticle.html)) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pmd/index.ptree"))))

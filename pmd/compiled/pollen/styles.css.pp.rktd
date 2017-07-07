@@ -1,0 +1,1 @@
+#hash((doc . "body {padding: 2em; font-size: 20px;}\nh1 {background: blue; color: white;}\nstrong {color: green;}\n") (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pmd/styles.css.pp"))))
