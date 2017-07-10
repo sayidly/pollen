@@ -1,0 +1,1 @@
+#hash((doc . (root "The first line of the 'first' paragraph." "\n" "And a new line." "\n" "\n" "The second paragraph --- isn't it great." "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pm/article.html.pm"))))
