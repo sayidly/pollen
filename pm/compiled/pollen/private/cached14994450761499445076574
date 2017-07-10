@@ -1,0 +1,1 @@
+#hash((doc . (root "π is close to " "3.141592653589793" "." "\n" "The hyperbolic sine of π is close to " "11.548739357257748" "." "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pm/article.html.pm"))))
