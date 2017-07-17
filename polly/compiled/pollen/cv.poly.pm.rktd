@@ -1,1 +1,1 @@
-#hash((doc . (root "{\\huge Brennan Huff}" "\n" "Today is " "Monday, July 17th, 2017" ". I " "{\\bf really}" " want this job." "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/polly/cv.poly.pm"))))
+#hash((doc . (root (h2 "Brennan Huff") "\n" "Today is " "Monday, July 17th, 2017" ". I " (strong "really") " want this job." "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/polly/cv.poly.pm"))))
