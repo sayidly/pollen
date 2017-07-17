@@ -1,0 +1,1 @@
+#hash((doc . (root (heading "Brennan Huff") "\n" "Today is " (get-date) ". I " (emph "really") " want this job." "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/polly/cv.poly.pm"))))
