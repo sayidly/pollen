@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Matthew Butterick: ◊(select 'h1 here)</title>
+    <script type="text/javascript">
+    function toggle_div(id) {
+        e = document.getElementById(id);
+        if (e.style.display == 'block') {
+            e.style.display = 'none';
+        }
+        else if (e.style.display == 'none') {
+            e.style.display = 'block';
+        }
+    }
+    </script>
+    <link rel="stylesheet" type="text/css" media="all" href="styles.css"/>
+</head>
+    <body>
+    ◊(->html #:tag 'div #:attrs '((id "doc")) doc)
+</body>

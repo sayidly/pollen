@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Matthew Butterick: Making a dual typed / untyped Racket library</title>
+    <script type="text/javascript">
+    function toggle_div(id) {
+        e = document.getElementById(id);
+        if (e.style.display == 'block') {
+            e.style.display = 'none';
+        }
+        else if (e.style.display == 'none') {
+            e.style.display = 'block';
+        }
+    }
+    </script>
+    <link rel="stylesheet" type="text/css" media="all" href="styles.css"/>
+</head>
+    <body>
+    <div id="doc"><h3 class="dept">Dep’t of Blunt Instruments</h3><h1>Making a dual typed / untyped Racket library</h1><div class="bigimage"><img src="close.jpg"/></div><p><a href="http://www.pacegallery.com/artists/80/chuck-close" class="ext">Chuck Close</a> is a terrific painter. Primarily a portraitist, he’s probably best known for his technique of dividing photos into grids and painting them, one cell at a time. As you can see, even though the overall image is easy to discern, the brushwork and colors in each cell follow a separate logic.</p><p>What I like most about Close’s grid paintings is that he never resolves their inherent tensions—between macro and micro, order and disorder, surface and depth, depiction and abstraction. Instead, he keeps these massive works—they’re 8–10 feet tall—carefully balanced in between. When I stand in front of one of these paintings, I feel like I’m in two places at once. Nice trick.</p><p>It’s also the kind of trick that Racket is good at. Recently I was wondering how to upgrade my <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> utility library for Racket so that it would work with Typed Racket, but without changing how it works in regular Racket.</p><h3 class="subhead foldable"><a href="javascript:toggle_div('g1549')">What is Typed Racket?</a></h3><div style="display:none;" id="g1549" class="payload"><p><a href="http://docs.racket-lang.org/ts-guide/" class="ext">Typed Racket</a> is a dialect of Racket that adds <span class="defined-term"><a href="http://stackoverflow.com/a/1517670/1486915" class="ext">static typing</a></span> to the otherwise untyped Racket language. You can explicitly add types to variables and functions using <a href="http://docs.racket-lang.org/ts-guide/more.html#%28part._.Type_.Annotation_and_.Binding_.Forms%29" class="ext">type annotations.</a> But Typed Racket also has a crafty <a href="http://docs.racket-lang.org/ts-guide/more.html#%28part._.Type_.Inference%29" class="ext">type-inference</a> system that deduces most of the others. Cleverly, Typed Racket doesn’t need a separate compiler. Once it completes its typechecking, you’re left with untyped Racket code, which is then compiled as usual.</p></div><h3 class="subhead foldable"><a href="javascript:toggle_div('g1550')">Why would you use a typed language generally, and Typed Racket in particular?</a></h3><div style="display:none;" id="g1550" class="payload"><p>Typed languages can be faster, because the compiler can eliminate certain checks that would otherwise have to be done when the program runs. This is the main reason I originally investigated Typed Racket. For instance, if you say <span class="my-code" decode="exclude">foo = foo + bar</span> in Python, your intention is to update the value of <span class="my-code" decode="exclude">foo</span> to be the sum of <span class="my-code" decode="exclude">bar</span> and the current value of <span class="my-code" decode="exclude">foo</span>. But even if you don’t care about types, Python still does: before it tries to add these two, it has to check that they both hold numeric values (if they don’t, you’ll get a <span class="my-code" decode="exclude">TypeError</span>). Whereas in a typed program, one could declare them both to be <span class="my-code" decode="exclude">Number</span>s. The program can rely on that promise (and skip checking them for number-ness later).</p><p>Note that this is another way of saying that <em>every</em> programming language <a href="https://existentialtype.wordpress.com/2011/03/19/dynamic-languages-are-static-languages/" class="ext">is a statically typed language.</a> The question is who does the typing (either you, or the program interpreter) and when (either before the program is running, or during). What we call an “untyped” language is better thought of as an expensively typed language. For many tasks, the convenience of not specifying types outweighs this cost. This is why untyped languages are popular for many jobs. But in some cases, you need the extra performance.</p><p>The other benefit of a typed language is <em>safety</em>. Type checking is a way of making and verifying claims about the data and functions in your program in a disciplined manner. In that sense, Typed Racket has a lot in common with Racket’s <a href="http://docs.racket-lang.org/reference/contracts.html" class="ext">contract system.</a> But because Typed Racket is verifying the types before the program runs, it can catch subtler errors. In practice, it takes more effort to get a program running in Typed Racket, but once it does, you can be confident that its internal logic is sound. Your effort is repaid later when you spend less time chasing down bugs.</p></div><h3 class="subhead">The need for speed</h3><p>The unavoidable wrinkle in a mixed typed / untyped system is the interaction between typed and untyped code. Most Racket libraries are written with untyped code, and Typed Racket—now shortening this to TR—has to use these libraries. TR’s job is to insure that your functions and data are what they say they are. So you can’t just toss untyped code into the mix—“don’t worry TR, this will work.” TR likes you, but it doesn’t trust you.</p><p>Instead, TR offers a function called <a href="http://pkg-build.racket-lang.org/doc/ts-reference/special-forms.html#(form._((lib._typed-racket/base-env/prims..rkt)._require/typed))" class="docs">require/typed</a>. Like the standard <a href="http://pkg-build.racket-lang.org/doc/reference/require.html#(form._((lib._racket/private/base..rkt)._require))" class="docs">require</a> function that imports a library into a program, <a href="http://pkg-build.racket-lang.org/doc/ts-reference/special-forms.html#(form._((lib._typed-racket/base-env/prims..rkt)._require/typed))" class="docs">require/typed</a> lets you specify the types that TR should apply to the untyped code.</p><p>This works well enough, but it has a cost: in this case, TR has to perform its typechecking when the program runs, and it does so by converting these types into Racket contracts. The added cost of a contract isn’t a big deal if you use the imported function occasionally.</p><p>But if you use the function a lot, the contract can be expensive. My <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> library is a collection of little utility and helper functions that get called frequently during a program. When I use them with <a href="http://pkg-build.racket-lang.org/doc/ts-reference/special-forms.html#(form._((lib._typed-racket/base-env/prims..rkt)._require/typed))" class="docs">require/typed</a>, in many cases the contract that gets wrapped around the function takes longer than the function itself.</p><p>What’s the solution? One option would be to convert <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> to be a native TR library. That’s fine, but this conversion can impose limitations on the library that aren’t necessary or desirable for untyped use. For instance, sometimes you need to narrow the interface of an untyped function to make it typable.</p><p>Another option would be to create a new version of <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> that’s typed, and make it available alongside untyped <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span>. But this means maintaining two sets of code in parallel. Bad for all the usual reasons.</p><p>Instead, I wanted to make <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> available as both a natively typed and untyped library, while only maintaining one codebase.</p><h3 class="subhead">Bilingual code</h3><p>Typed code naturally has more information in it than untyped code (namely, the type annotations). So my intuition was to convert <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> to TR and then generate an untyped version from this code by ignoring the type annotations.</p><p>TR makes this easy by offering its <span class="my-code" decode="exclude">no-check</span> dialects. You can write code under <span class="my-code" decode="exclude">#lang typed/racket</span> and then, if you want the typing to be ignored, change that line to <span class="my-code" decode="exclude">#lang typed/racket/no-check</span>, and the program will behave like untyped code.</p><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+
+<span class="p">(</span><span class="n">gt</span> <span class="mf">5.0</span> <span class="mf">4.0</span><span class="p">)</span> <span class="c1">; typecheck error: Floats are not Integers</span>
+</pre></div></td></tr></tbody></table></div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket/no-check</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+
+<span class="p">(</span><span class="n">gt</span> <span class="mf">5.0</span> <span class="mf">4.0</span><span class="p">)</span> <span class="c1">; works because Integer type is ignored</span>
+</pre></div></td></tr></tbody></table></div><p>This is cool, right? Untyped languages are usually built on top of typed languages, not the other way around. (For instance, the reference implementation of Python, an untyped language, is written in C, a typed language.) By making types an option rather than a requirement, Typed Racket creates new possibilities for how you can use types (what is sometimes called <span class="defined-term"><a href="https://blog.cppcabrera.com/posts/the-importance-of-gradual-types.html" class="ext">gradual typing.</a></span>)</p><p>Compiling a chunk of source code at two locations isn’t hard. Racket already has an <a href="http://pkg-build.racket-lang.org/doc/reference/include.html#(form._((lib._racket/include..rkt)._include))" class="docs">include</a> function that lets you pull in source code from another file. Our first intuition might be to set up three files, like so:</p><div class="filebox"><div class="filename" decode="exclude">gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="p">(</span><span class="k">provide</span> <span class="n">gt</span><span class="p">)</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">typed-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">include</span> <span class="s2">"gt.rkt"</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket/no-check</span>
+<span class="p">(</span><span class="k">include</span> <span class="s2">"gt.rkt"</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><p>This works, but it’s not very ergonomic: <span class="my-code" decode="exclude">"gt.rkt"</span> has no <span class="my-code" decode="exclude">#lang</span> line, so we can’t run it directly in DrRacket, which makes editing and testing the file more difficult.</p><p>To get around this, I wrote a new function called <span class="my-code" decode="exclude">include-without-lang-line</span> that behaves the same way as <a href="http://pkg-build.racket-lang.org/doc/reference/include.html#(form._((lib._racket/include..rkt)._include))" class="docs">include</a>, but strips out the <span class="my-code" decode="exclude">#lang</span> line it finds in the included file. That allows us to consolidate the files:</p><div class="filebox"><div class="filename" decode="exclude">typed-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span><span class="p">)</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket/no-check</span>
+<span class="p">(</span><span class="k">require</span> <span class="n">sugar/unstable/include</span><span class="p">)</span>
+<span class="p">(</span><span class="n">include-without-lang-line</span> <span class="s2">"typed-gt.rkt"</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><p>Suppose we also want the option to add untyped code to the untyped parts of the library. So rather than using <span class="my-code" decode="exclude">#lang typed/racket/no-check</span> directly, we can move this code into a submodule.</p><div class="filebox"><div class="filename" decode="exclude">typed-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span><span class="p">)</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span><span class="p">)</span>
+<span class="p">(</span><span class="k">module</span> <span class="n">typed-code</span> <span class="n">typed/racket/no-check</span>
+  <span class="p">(</span><span class="k">require</span> <span class="n">sugar/unstable/include</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">include-without-lang-line</span> <span class="s2">"typed-gt.rkt"</span><span class="p">))</span>
+<span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">typed-code</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><p>This way, we can <span class="my-code" decode="exclude">(require "typed-gt.rkt")</span> from TR code and get the typed version of the <span class="my-code" decode="exclude">gt</span> function, or <span class="my-code" decode="exclude">(require "untyped-gt.rkt")</span> from untyped Racket code and get the less strict untyped version. But the body of the function only exists in one place.</p><h3 class="subhead">Bilingual testing</h3><p>Testing in Racket is usually handled with the <span class="my-code" decode="exclude">rackunit</span> library. For most test cases in <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span>, the behavior of the typed and untyped code should be identical. Thus, I didn’t want to maintain two largely identical test files. I wanted to write a list of tests and run them in both typed and untyped mode.</p><p>Moreover, unlike the library itself, which is set up for the convenience of others, the tests could be set up for the convenience of me. So my goal was to make everything happen within one file. That meant my <span class="my-code" decode="exclude">include-without-lang-line</span> gimmick wouldn’t be useful here.</p><p>This time, submodules were the solution. Suppose we have a simple <span class="my-code" decode="exclude">rackunit</span> check.</p><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div><p>It’s clear how we can run this test in typed and untyped contexts using two test files:</p><div class="filebox"><div class="filename" decode="exclude">untyped-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">require</span> <span class="n">rackunit</span> <span class="s2">"untyped-gt.rkt"</span><span class="p">)</span>
+<span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">typed-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">require</span> <span class="n">typed/rackunit</span> <span class="s2">"typed-gt.rkt"</span><span class="p">)</span>
+<span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><p>Then we can combine them into a single file with submodules:</p><div class="filebox"><div class="filename" decode="exclude">bilingual-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+
+<span class="p">(</span><span class="k">module</span> <span class="n">untyped-test</span> <span class="n">racket</span>
+  <span class="p">(</span><span class="k">require</span> <span class="n">rackunit</span> <span class="s2">"untyped-gt.rkt"</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">)))</span>
+<span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">untyped-test</span><span class="p">)</span>
+
+<span class="p">(</span><span class="k">module</span> <span class="n">typed-test</span> <span class="n">typed/racket</span>
+  <span class="p">(</span><span class="k">require</span> <span class="n">typed/rackunit</span> <span class="s2">"typed-gt.rkt"</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span>
+<span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">typed-test</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><p>The final maneuver is to make a macro that will take our list of tests and put them into this two-submodule form. Here’s a simple way to do it:</p><div class="filebox"><div class="filename" decode="exclude">bilingual-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">require</span> <span class="p">(</span><span class="k">for-syntax</span> <span class="n">racket/syntax</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define-syntax</span> <span class="p">(</span><span class="n">eval-as-typed-and-untyped</span> <span class="n">stx</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">syntax-case</span> <span class="n">stx</span> <span class="p">()</span>
+    <span class="p">[(</span><span class="k">_</span> <span class="n">exprs</span> <span class="k">...</span><span class="p">)</span>
+     <span class="p">(</span><span class="k">with-syntax</span> <span class="p">([</span><span class="n">untyped-sym</span> <span class="p">(</span><span class="n">generate-temporary</span><span class="p">)]</span>
+                   <span class="p">[</span><span class="n">typed-sym</span> <span class="p">(</span><span class="n">generate-temporary</span><span class="p">)])</span>
+       <span class="o">#&#39;</span><span class="p">(</span><span class="k">begin</span>
+           <span class="p">(</span><span class="k">module</span> <span class="n">untyped-sym</span> <span class="n">racket</span>
+             <span class="p">(</span><span class="k">require</span> <span class="n">rackunit</span> <span class="s2">"untyped-gt.rkt"</span><span class="p">)</span>
+             <span class="n">exprs</span> <span class="k">...</span><span class="p">)</span>
+           <span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">untyped-sym</span><span class="p">)</span>
+           <span class="p">(</span><span class="k">module</span> <span class="n">typed-sym</span> <span class="n">typed/racket</span>
+             <span class="p">(</span><span class="k">require</span> <span class="n">typed/rackunit</span> <span class="s2">"typed-gt.rkt"</span><span class="p">)</span>
+             <span class="n">exprs</span> <span class="k">...</span><span class="p">)</span>
+           <span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">typed-sym</span><span class="p">)))]))</span>
+
+<span class="p">(</span><span class="n">eval-as-typed-and-untyped</span>
+  <span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">)))</span> <span class="c1">; works</span>
+</pre></div></td></tr></tbody></table></div></div><p>We need <a href="http://pkg-build.racket-lang.org/doc/reference/syntax-util.html#(def._((lib._racket/syntax..rkt)._generate-temporary))" class="docs">generate-temporary</a> in case we want to invoke the macro multiple times within the file—it insures that each submodule has a distinct, nonconflicting name.</p><h3 class="subhead">Making macros</h3><p>Aside from the potentially slower performance, one significant shortcoming of <a href="http://pkg-build.racket-lang.org/doc/ts-reference/special-forms.html#(form._((lib._typed-racket/base-env/prims..rkt)._require/typed))" class="docs">require/typed</a> is that it can’t be used with macros. But that’s not a problem here. If we make a macro version of <span class="my-code" decode="exclude">gt</span>, everything still works:</p><div class="filebox"><div class="filename" decode="exclude">typed-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span> <span class="n">gt-macro</span><span class="p">)</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+<span class="p">(</span><span class="k">define-syntax-rule</span> <span class="p">(</span><span class="n">gt-macro</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span> <span class="n">gt-macro</span><span class="p">)</span>
+<span class="p">(</span><span class="k">module</span> <span class="n">typed-code</span> <span class="n">typed/racket/no-check</span>
+  <span class="p">(</span><span class="k">require</span> <span class="n">sugar/unstable/include</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">include-without-lang-line</span> <span class="s2">"typed-gt.rkt"</span><span class="p">))</span>
+<span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">typed-code</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">bilingual-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+
+<span class="p">(</span><span class="k">define-syntax</span> <span class="p">(</span><span class="n">eval-as-typed-and-untyped</span> <span class="n">stx</span><span class="p">)</span>
+  <span class="k">...</span> <span class="p">)</span> <span class="c1">; definition same as above</span>
+
+<span class="p">(</span><span class="n">eval-as-typed-and-untyped</span>
+  <span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span> <span class="c1">; still works</span>
+  <span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt-macro</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">)))</span> <span class="c1">; also works</span>
+</pre></div></td></tr></tbody></table></div></div><h3 class="subhead">Adding contracts on the untyped side</h3><p>Using this technique, nothing stops us from adding contracts to the untyped library that correspond to the typed version of the function:</p><div class="filebox"><div class="filename" decode="exclude">typed-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">typed/racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="n">gt</span><span class="p">)</span>
+<span class="p">(</span><span class="n">:</span> <span class="n">gt</span> <span class="n">:</span> <span class="n">Integer</span> <span class="n">Integer</span> <span class="k">-&gt;</span> <span class="n">Boolean</span><span class="p">)</span>
+<span class="p">(</span><span class="k">define</span> <span class="p">(</span><span class="n">gt</span> <span class="n">x</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">&gt;</span> <span class="n">x</span> <span class="n">y</span><span class="p">))</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-gt.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">provide</span> <span class="p">(</span><span class="k">contract-out</span> <span class="p">[</span><span class="n">gt</span> <span class="p">(</span><span class="nb">integer?</span> <span class="nb">integer?</span> <span class="o">.</span> <span class="k">-&gt;</span> <span class="o">.</span> <span class="nb">boolean?</span><span class="p">)]))</span>
+<span class="p">(</span><span class="k">module</span> <span class="n">typed-code</span> <span class="n">typed/racket/no-check</span>
+  <span class="p">(</span><span class="k">require</span> <span class="n">sugar/unstable/include</span><span class="p">)</span>
+  <span class="p">(</span><span class="n">include-without-lang-line</span> <span class="s2">"typed-gt.rkt"</span><span class="p">))</span>
+<span class="p">(</span><span class="k">require</span> <span class="o">&#39;</span><span class="ss">typed-code</span><span class="p">)</span>
+</pre></div></td></tr></tbody></table></div></div><div class="filebox"><div class="filename" decode="exclude">untyped-test.rkt</div><div class="highlight"><table class="sourcetable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="source"><pre><span></span><span class="kn">#lang </span><span class="nn">racket</span>
+<span class="p">(</span><span class="k">require</span> <span class="n">rackunit</span> <span class="s2">"untyped-gt.rkt"</span><span class="p">)</span>
+<span class="p">(</span><span class="n">check-true</span> <span class="p">(</span><span class="n">gt</span> <span class="mi">42</span> <span class="mi">41</span><span class="p">))</span> <span class="c1">; works</span>
+<span class="p">(</span><span class="n">check-exn</span> <span class="nb">exn:fail:contract?</span> <span class="p">(</span><span class="k">λ</span> <span class="k">_</span> <span class="p">(</span><span class="n">gt</span> <span class="mf">42.5</span> <span class="mi">41</span><span class="p">)))</span> <span class="c1">; fails</span>
+</pre></div></td></tr></tbody></table></div></div><p>From here, it’s a short step to a <em>triple</em>-mode library: we can make a <span class="my-code" decode="exclude">'safe</span> submodule in <span class="my-code" decode="exclude">"untyped-gt.rkt"</span> that provides the function with a contract, and otherwise provide it without. Details are left as an exercise to the reader. (Hints are available in the <span class="my-code"><a href="http://github.com/mbutterick/sugar">sugar</a></span> source.)</p><p><span class="my-code" decode="exclude">— Matthew Butterick | 6 May 2015</span></p><h3 class="subhead">Pollen source files for this article</h3><p><span class="my-code" decode="exclude"><a href="pollen.rkt.html">pollen.rkt</a></span><br/><span class="my-code" decode="exclude"><a href="dual-typed-untyped-library.html.pm.html">dual-typed-untyped-library.html.pm</a></span><br/><span class="my-code" decode="exclude"><a href="template.html.html">template.html</a></span><br/><span class="my-code" decode="exclude"><a href="styles.css.pp.html">styles.css.pp</a></span></p></div>
+</body>
