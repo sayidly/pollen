@@ -11,9 +11,9 @@
 }
 ◊(make-media-query 24 10.5 1000 40 .25)
 ◊; ◊(font-face-declaration "advocate-slab-c55" "fonts/woff/advocate_slab_c55_regular.woff" #:base64 #t)
-◊; ◊(font-face-declaration "concourse-t2" "fonts/woff/concourse_t2_regular.woff" #:base64 #t)
-◊; ◊(font-face-declaration "concourse-t3" "fonts/woff/concourse_t3_regular.woff" #:base64 #t)
-◊; ◊(font-face-declaration "concourse-t3" "fonts/woff/concourse_t3_italic.woff" #:font-style "italic" #:base64 #t)
+◊(font-face-declaration "concourse-t2" "fonts/woff/concourse_t2_regular.woff" #:base64 #t)
+◊(font-face-declaration "concourse-t3" "fonts/woff/concourse_t3_regular.woff" #:base64 #t)
+◊(font-face-declaration "concourse-t3" "fonts/woff/concourse_t3_italic.woff" #:font-style "italic" #:base64 #t)
 ◊; ◊(font-face-declaration "triplicate-t4c" "fonts/woff/triplicate_t4_code_regular.woff" #:base64 #t)
 ◊; ◊(font-face-declaration "triplicate-t4c" "fonts/woff/triplicate_t4_code_italic.woff" #:font-style "italic" #:base64 #t)*/
 
