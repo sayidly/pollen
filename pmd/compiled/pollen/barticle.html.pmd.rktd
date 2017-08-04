@@ -1,1 +1,0 @@
-#hash((doc . (root (h1 ((id "barticle-title")) "Barticle Title") (p "The wonderful second part of the article."))) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pmd/barticle.html.pmd"))))

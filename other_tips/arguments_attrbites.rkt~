@@ -1,0 +1,7 @@
+#lang pollen
+◊title['((class "red")(id "first"))]{The Beginning of the End}
+
+◊; Other options
+
+◊title[#:class "red" #:id "first"]{The Beginning of the End}
+

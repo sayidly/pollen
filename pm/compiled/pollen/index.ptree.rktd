@@ -1,1 +1,0 @@
-#hash((doc . (pagetree-root burial.html chess.html sermon.html)) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/pm/index.ptree"))))

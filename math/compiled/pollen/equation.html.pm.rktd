@@ -1,1 +1,0 @@
-#hash((doc . (root (h1 "I wonder if " (mathjax "$2^{\\aleph_\\alpha} = \\aleph_{\\alpha+1}$") "?") "\n")) (metas . #hasheq((here-path . "/Users/sayidhe/Desktop/pollen/math/equation.html.pm"))))

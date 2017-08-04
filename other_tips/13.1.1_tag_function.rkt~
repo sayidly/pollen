@@ -1,0 +1,7 @@
+#lang pollen
+
+◊(define author-name "Brennan Huff")
+◊author-name
+
+◊(define (get-author-name) "Dale Doback")
+◊get-author-name[]
